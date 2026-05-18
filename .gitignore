@@ -10,3 +10,4 @@ data/
 .idea/
 .vscode/
 .pytest_cache/
+.claude/
