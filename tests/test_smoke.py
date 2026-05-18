@@ -93,6 +93,11 @@ def test_is_trivial_short_greeting() -> None:
     assert _is_trivial_input("오늘 점심 뭐 먹지?")
 
 
+def test_is_trivial_short_work_request_false() -> None:
+    assert not _is_trivial_input("파이썬으로 할 일 목록 앱 설계를 간단히 작성해줘")
+    assert not _is_trivial_input("README 요약해줘")
+
+
 def test_is_trivial_long_text_false() -> None:
     long = "이 함수의 버그를 찾아서 자세히 수정해주세요 그리고 테스트도 추가해줘"
     assert not _is_trivial_input(long)
@@ -144,6 +149,7 @@ if __name__ == "__main__":
     test_extract_verdict_revise_case_insensitive()
     test_extract_verdict_missing()
     test_is_trivial_short_greeting()
+    test_is_trivial_short_work_request_false()
     test_is_trivial_long_text_false()
     test_is_trivial_multiline_false()
     test_is_trivial_code_false()

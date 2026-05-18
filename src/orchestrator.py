@@ -23,6 +23,18 @@ _VERDICT_RE = re.compile(r"\[VERDICT:\s*(ACCEPT|REVISE)\s*\]", re.IGNORECASE)
 _MAX_REVISE_PER_GOAL = 1
 
 _TRIVIAL_MAX_LEN = 30
+_WORK_INTENT_RE = re.compile(
+    r"(작성|설계|구현|수정|고쳐|분석|요약|정리|조사|검색|찾아|추천|"
+    r"만들|생성|코드|테스트|리뷰|검토|문서|앱|API|api|해줘|해주세요|"
+    r"write|create|build|implement|fix|analyze|summarize|review|test)",
+    re.IGNORECASE,
+)
+_FAST_INPUT_PATTERNS = [
+    re.compile(r"^(안녕|안녕하세요|안뇽|하이|ㅎㅇ|hi|hello|hey)[!.?~\s]*$", re.IGNORECASE),
+    re.compile(r"^(고마워|고맙|감사|thanks|thank you)[!.?~\s]*$", re.IGNORECASE),
+    re.compile(r"^(좋아|오케이|ok|okay|ㅇㅋ|네|넵|응|아니|아니요)[!.?~\s]*$", re.IGNORECASE),
+    re.compile(r"^오늘\s*(아침|점심|저녁)\s*뭐\s*먹지[?.!~\s]*$", re.IGNORECASE),
+]
 _FAST_SYSTEM_PROMPT = (
     "사용자가 한 줄짜리 짧은 메시지를 보냈습니다. 분석이나 계획을 길게 늘어놓지 말고, "
     "한 번에 자연스럽고 친근하게 답하세요. 사용자 메시지와 같은 언어로 응답하세요."
@@ -42,7 +54,9 @@ def _is_trivial_input(text: str) -> bool:
         return False
     if "http://" in s or "https://" in s:
         return False
-    return True
+    if _WORK_INTENT_RE.search(s):
+        return False
+    return any(p.search(s) for p in _FAST_INPUT_PATTERNS)
 
 
 class Orchestrator:
