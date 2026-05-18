@@ -4,7 +4,7 @@ Telegram에서 목표를 입력받아 여러 LLM 에이전트가 순차적으로
 
 ## 주요 기능
 
-- Telegram 명령어 기반 목표 접수
+- Telegram 일반 메시지 또는 `/goal` 명령어 기반 목표 접수
 - Leader, Planner, Executor, Reviewer 에이전트 파이프라인
 - SQLite 기반 목표/태스크/지식 저장
 - URL 또는 텍스트 지식 주입
@@ -73,6 +73,7 @@ python main.py
 Telegram에서 사용할 수 있는 주요 명령어:
 
 ```text
+일반 텍스트 메시지: 목표로 접수
 /start
 /goal <목표>
 /status

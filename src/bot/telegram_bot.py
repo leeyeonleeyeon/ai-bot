@@ -45,12 +45,13 @@ class TelegramBot:
         self.app.add_handler(CommandHandler("result", self.cmd_result))
         self.app.add_handler(CommandHandler("inject", self.cmd_inject))
         self.app.add_handler(CommandHandler("reset", self.cmd_reset))
-        self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.cmd_help))
+        self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.cmd_text_goal))
 
     async def cmd_start(self, update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(
             "🤖 멀티에이전트 팀 봇 (Gemma 4 / e2b)\n\n"
-            "/goal <목표>     팀에게 업무 지시\n"
+            "목표를 그냥 메시지로 보내면 팀이 바로 작업합니다.\n"
+            "/goal <목표>     명령어 방식으로 업무 지시\n"
             "/status          진행 상태 조회\n"
             "/result          최근 결과 보기\n"
             "/inject <URL|텍스트>  지식 주입(브레인 팩)\n"
@@ -60,8 +61,17 @@ class TelegramBot:
     async def cmd_goal(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         goal = " ".join(ctx.args).strip()
         if not goal:
-            await update.message.reply_text("사용법: /goal <목표>")
+            await update.message.reply_text("사용법: /goal <목표>\n또는 목표를 그냥 메시지로 보내세요.")
             return
+        await self._run_goal(update, goal)
+
+    async def cmd_text_goal(self, update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        goal = (update.message.text or "").strip()
+        if not goal:
+            return
+        await self._run_goal(update, goal)
+
+    async def _run_goal(self, update: Update, goal: str) -> None:
         chat_id = update.effective_chat.id
         await update.message.reply_text(f"🎯 목표 접수\n{goal}")
 
@@ -132,9 +142,6 @@ class TelegramBot:
     async def cmd_reset(self, update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
         n = await self.queue.reset_chat(update.effective_chat.id)
         await update.message.reply_text(f"🔄 진행 중 작업 {n}건을 초기화했습니다.")
-
-    async def cmd_help(self, update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
-        await update.message.reply_text("/start 로 명령어를 확인하세요.")
 
     def run(self) -> None:
         self.app.run_polling()
