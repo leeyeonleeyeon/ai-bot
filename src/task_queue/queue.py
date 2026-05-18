@@ -99,6 +99,18 @@ class TaskQueue:
             row = await cur.fetchone()
             return dict(row) if row else None
 
+    async def latest_completed_goal(self, chat_id: int) -> Optional[dict]:
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                "SELECT * FROM goals "
+                "WHERE chat_id = ? AND status = 'done' AND result IS NOT NULL AND result != '' "
+                "ORDER BY created_at DESC LIMIT 1",
+                (chat_id,),
+            )
+            row = await cur.fetchone()
+            return dict(row) if row else None
+
     async def goal_status(self, goal_id: str) -> Optional[dict]:
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row

@@ -23,10 +23,17 @@ _VERDICT_RE = re.compile(r"\[VERDICT:\s*(ACCEPT|REVISE)\s*\]", re.IGNORECASE)
 _MAX_REVISE_PER_GOAL = 1
 
 _TRIVIAL_MAX_LEN = 30
+_RECENT_GOAL_CONTEXT_MAX_CHARS = 8000
 _WORK_INTENT_RE = re.compile(
     r"(작성|설계|구현|수정|고쳐|분석|요약|정리|조사|검색|찾아|추천|"
-    r"만들|생성|코드|테스트|리뷰|검토|문서|앱|API|api|해줘|해주세요|"
+    r"만들|생성|코드|테스트|리뷰|검토|문서|앱|API|api|DB|db|스키마|"
+    r"데이터베이스|표로|추가|변환|바꿔|줄여|늘려|다듬|해줘|해주세요|"
     r"write|create|build|implement|fix|analyze|summarize|review|test)",
+    re.IGNORECASE,
+)
+_FOLLOWUP_INTENT_RE = re.compile(
+    r"(그거|그걸|그것|이거|이걸|이것|저거|저걸|방금|위의?|앞의?|이전|"
+    r"더\s*(짧게|길게|자세히|구체적으로)|짧게|길게|계속|다시)",
     re.IGNORECASE,
 )
 _FAST_INPUT_PATTERNS = [
@@ -46,6 +53,28 @@ def _extract_verdict(text: str) -> Optional[str]:
     return m.group(1).lower() if m else None
 
 
+def _build_recent_goal_context(goal: Optional[dict]) -> Optional[str]:
+    if not goal:
+        return None
+    result = (goal.get("result") or "").strip()
+    if not result:
+        return None
+    desc = (goal.get("description") or "").strip()
+    if len(result) > _RECENT_GOAL_CONTEXT_MAX_CHARS:
+        omitted = len(result) - _RECENT_GOAL_CONTEXT_MAX_CHARS
+        result = (
+            result[:_RECENT_GOAL_CONTEXT_MAX_CHARS]
+            + f"\n\n[... previous result truncated by {omitted} chars ...]"
+        )
+    return (
+        "이전 완료된 사용자 목표와 결과입니다. 사용자가 '그것', '방금 결과', "
+        "'이전 내용'처럼 맥락을 이어서 말하면 아래 결과를 기준으로 답하세요. "
+        "명시적으로 새 주제를 요청하면 참고만 하세요.\n\n"
+        f"[PREVIOUS_GOAL]\n{desc}\n\n"
+        f"[PREVIOUS_RESULT]\n{result}"
+    )
+
+
 def _is_trivial_input(text: str) -> bool:
     s = (text or "").strip()
     if not s or len(s) >= _TRIVIAL_MAX_LEN:
@@ -55,6 +84,8 @@ def _is_trivial_input(text: str) -> bool:
     if "http://" in s or "https://" in s:
         return False
     if _WORK_INTENT_RE.search(s):
+        return False
+    if _FOLLOWUP_INTENT_RE.search(s):
         return False
     return any(p.search(s) for p in _FAST_INPUT_PATTERNS)
 
@@ -93,12 +124,18 @@ class Orchestrator:
 
         knowledge_rows = await self.queue.list_knowledge(chat_id)
         knowledge = [k["content"] for k in knowledge_rows]
+        recent_goal = await self.queue.latest_completed_goal(chat_id)
 
         goal_id = await self.queue.create_goal(chat_id, goal_description)
         await self.queue.update_goal(goal_id, TaskStatus.IN_PROGRESS)
 
         if _is_trivial_input(goal_description):
             return await self._run_fast(goal_id, goal_description, knowledge, notify)
+
+        recent_context = _build_recent_goal_context(recent_goal)
+        if recent_context:
+            knowledge.append(recent_context)
+            await notify("↩️ 직전 완료 결과를 참고 컨텍스트로 포함")
 
         await notify("📋 리더가 목표를 분해 중...")
 
